@@ -18,6 +18,7 @@ struct Node_t
     node_type type;
 
     double value;
+    char* var_name;
 
     Node_t* left;
     Node_t* right;
@@ -29,7 +30,7 @@ typedef struct {
     int number_of_nodes;
 } Path;
 
-Node_t* create_node(node_type type, double value, Node_t* parent);
+Node_t* create_node(node_type type, double value, char* var_name, Node_t* parent);
 // Node_t* search_node(Node_t* root, elem_t value);
 Node_t* parse(char* buffer, int* index, Node_t* parent);
 double evaluate(Node_t* node);

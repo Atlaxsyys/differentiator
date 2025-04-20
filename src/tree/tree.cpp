@@ -19,10 +19,10 @@
 static bool is_number(char* token);
 static char* get_token(char* buffer, int* index);
 static void skip_spaces_brakets(char* buffer, int* index);
-static Node_t* new_node(node_type type, double value, Node_t* left, Node_t* right);
+static Node_t* new_node(node_type type, double value, char* var_name, Node_t* left, Node_t* right);
 static Node_t* CopyTree(Node_t* root);
 
-Node_t* create_node(node_type type, double value, Node_t* parent)
+Node_t* create_node(node_type type, double value, char* var_name, Node_t* parent)
 {
     Node_t* node = (Node_t*) calloc(1, sizeof(Node_t));
 
@@ -34,6 +34,7 @@ Node_t* create_node(node_type type, double value, Node_t* parent)
 
     node->type = type;
     node->value = value;
+    node->var_name = var_name ? strdup(var_name) : nullptr;
 
     node->left = nullptr;
     node->right = nullptr;
@@ -43,7 +44,7 @@ Node_t* create_node(node_type type, double value, Node_t* parent)
     return node;
 }
 
-Node_t* new_node(node_type type, double value, Node_t* left, Node_t* right)
+Node_t* new_node(node_type type, double value, char* var_name, Node_t* left, Node_t* right)
 {
     Node_t* node = (Node_t*) calloc(1, sizeof(Node_t));
 
@@ -55,6 +56,7 @@ Node_t* new_node(node_type type, double value, Node_t* left, Node_t* right)
 
     node->type = type;
     node->value = value;
+    node->var_name = var_name ? strdup(var_name) : nullptr;
 
     node->left = left;
     node->right = right;
@@ -69,7 +71,7 @@ Node_t* CopyTree(Node_t* root)
 {
     assert(root);
 
-    Node_t* node = new_node(root->type, root->value, nullptr, nullptr);
+    Node_t* node = new_node(root->type, root->value, root->var_name, nullptr, nullptr);
 
     if (root->left)   node->left  = CopyTree(root->left);
     if (root->right)  node->right = CopyTree(root->right);
@@ -122,16 +124,16 @@ Node_t* parse(char* buffer, int* index, Node_t* parent)
 
     if (is_number(token))
     {
-        node = create_node(NUM, atof(token), parent);
+        node = create_node(NUM, atof(token), nullptr, parent);
         free(token);
         skip_spaces_brakets(buffer, index);
 
         return node;
     }
 
-    if (strcmp(token, "x") == 0)
+    if (isalpha(token[0]) && token[1] == '\0')
     {
-        node = create_node(VAR, 0, parent);
+        node = create_node(VAR, 0, token, parent);
         free(token);
         skip_spaces_brakets(buffer, index);
 
@@ -148,13 +150,14 @@ Node_t* parse(char* buffer, int* index, Node_t* parent)
     {
         LOG_ERROR("Unknown operator: %s", token);
         free(token);
+
         return nullptr;
     }
 
-    node = create_node(OP, op_value, parent);
+    node = create_node(OP, op_value, nullptr, parent);
     free(token);
 
-    node->left = parse(buffer, index, node);
+    node->left  = parse(buffer, index, node);
     node->right = parse(buffer, index, node);
 
     return node;
@@ -222,7 +225,7 @@ double evaluate(Node_t* node)
         return 0;
     }
 
-    double left = evaluate(node->left);
+    double left  = evaluate(node->left);
     double right = evaluate(node->right);
 
     if (node->type == OP)
@@ -250,6 +253,8 @@ Tree_errors free_tree(Node_t** node)
     free_tree(&((*node)->left));
     free_tree(&((*node)->right));
 
+    if ((*node)->var_name) free((*node)->var_name);
+
     free(*node);
 
     *node = nullptr;
@@ -268,29 +273,39 @@ Tree_errors dump_tree(Node_t* root, FILE* file)
         snprintf(data, sizeof(data), "%.2f", root->value);
     }
 
-    else
+    else if (root->type == VAR)
+    {
+        strncpy(data, root->var_name ? root->var_name : "?", sizeof(data));
+        data[sizeof(data)-1] = '\0';
+    }
+
+    else if (root->type == OP)
     {
         switch ((int)root->value)
         {
             case ADD: strcpy(data, "+");   break;
+            case SUB: strcpy(data, "-");   break;
             case MUL: strcpy(data, "*");   break;
             case DIV: strcpy(data, "/");   break;
             default:  strcpy(data, "???"); break;
         }
     }
 
+    else
+    {
+        strcpy(data, "???");
+    }
+
     fprintf(file,
             "    \"%p\" [shape=Mrecord, style=filled, fillcolor=\"#F0C0F0\", label=\"{"
             "data: %s | "
             "current: %p | "
-            "parent: %p | "
             "{ Left: %p | "
             "Right: %p }"
             "}\"];\n",
             root,
             data,
             root,
-            root->parent,
             root->left,
             root->right);
 
@@ -370,37 +385,37 @@ Node_t* diff(Node_t* root)
     switch (root->type)
     {
         case NUM:
-            return create_node(NUM, 0, nullptr);
+            return create_node(NUM, 0, nullptr, nullptr);
 
         case VAR:
-            return create_node(NUM, 1, nullptr);
+            return create_node(NUM, 1, nullptr, nullptr);
 
         case OP:
             switch ((int)root->value)
             {
                 case ADD:
                     // d(u + v)/dx = d(u)/dx + d(v)/dx
-                    return new_node(OP, ADD,
+                    return new_node(OP, ADD, nullptr,
                                     diff(root->left),
                                     diff(root->right));
 
                 case MUL:
                     // d(u * v)/dx = u * d(v)/dx + v * d(u)/dx
-                    return new_node(OP, ADD,
-                                    new_node(OP, MUL, CopyTree(root->left), diff(root->right)),
-                                    new_node(OP, MUL, diff(root->left), CopyTree(root->right)));
+                    return new_node(OP, ADD, nullptr,
+                                    new_node(OP, MUL, nullptr, CopyTree(root->left), diff(root->right)),
+                                    new_node(OP, MUL, nullptr, diff(root->left), CopyTree(root->right)));
 
                 case DIV:
                     // d(u / v)/dx = (d(u)/dx * v - u * d(v)/dx) / (v * v)
-                    return new_node(OP, DIV,
-                                    new_node(OP, SUB,
-                                             new_node(OP, MUL, diff(root->left), CopyTree(root->right)),
-                                             new_node(OP, MUL, CopyTree(root->left), diff(root->right))),
-                                    new_node(OP, MUL, CopyTree(root->right), CopyTree(root->right)));
+                    return new_node(OP, DIV, nullptr,
+                                    new_node(OP, SUB, nullptr,
+                                             new_node(OP, MUL, nullptr, diff(root->left), CopyTree(root->right)),
+                                             new_node(OP, MUL, nullptr, CopyTree(root->left), diff(root->right))),
+                                    new_node(OP, MUL, nullptr, CopyTree(root->right), CopyTree(root->right)));
 
                 case SUB:
                     // d(u - v)/dx = d(u)/dx - d(v)/dx
-                    return new_node(OP, SUB,
+                    return new_node(OP, SUB, nullptr,
                                     diff(root->left),
                                     diff(root->right));
 
