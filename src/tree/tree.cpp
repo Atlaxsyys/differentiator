@@ -19,10 +19,12 @@
 static bool is_number(char* token);
 static char* get_token(char* buffer, int* index);
 static void skip_spaces_brakets(char* buffer, int* index);
+static Node_t* new_node(node_type type, double value, Node_t* left, Node_t* right);
 
 Node_t* create_node(node_type type, double value, Node_t* parent)
 {
     Node_t* node = (Node_t*) calloc(1, sizeof(Node_t));
+
     if (! node)
     {
         LOG_ERROR("node = nullptr!");
@@ -36,6 +38,40 @@ Node_t* create_node(node_type type, double value, Node_t* parent)
     node->right = nullptr;
 
     node->parent = parent;
+
+    return node;
+}
+
+Node_t* new_node(node_type type, double value, Node_t* left, Node_t* right)
+{
+    Node_t* node = (Node_t*) calloc(1, sizeof(Node_t));
+
+    if (! node)
+    {
+        LOG_ERROR("node = nullptr!");
+        return nullptr;
+    }
+
+    node->type = type;
+    node->value = value;
+
+    node->left = left;
+    node->right = right;
+
+    if (left) left->parent = node;
+    if (right) left->parent = node;
+
+    return node;
+}
+
+Node_t* CopyTree(Node_t* root)
+{
+    assert(root);
+
+    Node_t* node = new_node(root->type, root->value, nullptr, nullptr);
+
+    if (root->left)   node->left  = CopyTree(root->left);
+    if (root->right)  node->right = CopyTree(root->right);
 
     return node;
 }
@@ -162,18 +198,22 @@ void skip_spaces_brakets(char* buffer, int* index)
 
 double evaluate(Node_t* node)
 {
-    if (node->type == NUM) {
+    if (node->type == NUM)
+    {
         return node->value;
     }
 
-    double left = evaluate(node->left);
+    double left  = evaluate(node->left);
     double right = evaluate(node->right);
 
-    switch ((int)node->value)
+    if(node->type == OP)
     {
-        case ADD: return left + right;
-        case MUL: return left * right;
-        case DIV: return left / right;
+        switch ((int)node->value)
+        {
+            case ADD: return left + right;
+            case MUL: return left * right;
+            case DIV: return left / right;
+        }
     }
 }
 
@@ -191,11 +231,19 @@ Tree_errors free_tree(Node_t** node)
     return SUCCESS;
 }
 
+Tree_errors copy_tree(Node_t* root)
+{
+    assert(root);
+
+    Node_t*
+}
+
 Tree_errors dump_tree(Node_t* root, FILE* file)
 {
     assert(root);
 
     char data[32];
+
     if (root->type == NUM)
     {
         snprintf(data, sizeof(data), "%.2f", root->value);

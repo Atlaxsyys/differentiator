@@ -20,7 +20,7 @@ int main(int argc, const char* argv[])
 
     char* buffer = create_buffer(file_read);
 
-    fprintf(stderr, YELLOW_TEXT("%s"), buffer);
+    LOG_DEBUG("buffer: %s", buffer);
 
     int index = 0;
 
