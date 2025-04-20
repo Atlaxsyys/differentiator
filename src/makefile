@@ -30,10 +30,11 @@ CPPSRC = $(SRC_DIR)/diff/diff.cpp \
          $(SRC_DIR)/logger/logger.cpp \
          $(SRC_DIR)/errors/errors.cpp \
          $(SRC_DIR)/tree/tree.cpp \
+         $(SRC_DIR)/eval/eval.cpp \
 
 CPPOBJ = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(notdir $(CPPSRC)))
 
-vpath %.cpp diff file_data tree logger errors
+vpath %.cpp diff file_data tree logger errors eval
 
 $(shell mkdir -p $(OBJ_DIR))
 $(shell mkdir -p $(LOG_DIR))

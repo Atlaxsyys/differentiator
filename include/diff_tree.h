@@ -31,7 +31,8 @@ typedef struct {
 } Path;
 
 Node_t* create_node(node_type type, double value, char* var_name, Node_t* parent);
-// Node_t* search_node(Node_t* root, elem_t value);
+Node_t* new_node(node_type type, double value, char* var_name, Node_t* left, Node_t* right);
+Node_t* CopyTree(Node_t* root);
 Node_t* parse(char* buffer, int* index, Node_t* parent);
 double evaluate(Node_t* node);
 Tree_errors free_tree(Node_t** node);

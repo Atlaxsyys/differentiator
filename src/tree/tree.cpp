@@ -19,8 +19,6 @@
 static bool is_number(char* token);
 static char* get_token(char* buffer, int* index);
 static void skip_spaces_brakets(char* buffer, int* index);
-static Node_t* new_node(node_type type, double value, char* var_name, Node_t* left, Node_t* right);
-static Node_t* CopyTree(Node_t* root);
 
 Node_t* create_node(node_type type, double value, char* var_name, Node_t* parent)
 {
@@ -213,39 +211,6 @@ void skip_spaces_brakets(char* buffer, int* index)
     while(isspace(buffer[*index]) || buffer[*index] == '(' || buffer[*index] == ')') (*index)++;
 }
 
-double evaluate(Node_t* node)
-{
-    if (node->type == NUM)
-    {
-        return node->value;
-    }
-
-    if (node->type == VAR)
-    {
-        return 0;
-    }
-
-    double left  = evaluate(node->left);
-    double right = evaluate(node->right);
-
-    if (node->type == OP)
-    {
-        switch ((int)node->value)
-        {
-            case ADD: return left + right;
-            case SUB: return left - right;
-            case MUL: return left * right;
-            case DIV: return left / right;
-            default:
-                LOG_ERROR("Unknown operator: %d", (int)node->value);
-                return 0;
-        }
-    }
-
-    LOG_ERROR("Unknown node type: %d", node->type);
-    return 0;
-}
-
 Tree_errors free_tree(Node_t** node)
 {
     if (*node == nullptr) { return SUCCESS; }
@@ -276,7 +241,7 @@ Tree_errors dump_tree(Node_t* root, FILE* file)
     else if (root->type == VAR)
     {
         strncpy(data, root->var_name ? root->var_name : "?", sizeof(data));
-        data[sizeof(data)-1] = '\0';
+        data[sizeof(data) - 1] = '\0';
     }
 
     else if (root->type == OP)
@@ -376,56 +341,4 @@ int generate_dot(Node_t* root)
     free(command);
 
     return (file_counter - 1);
-}
-
-Node_t* diff(Node_t* root)
-{
-    assert(root);
-
-    switch (root->type)
-    {
-        case NUM:
-            return create_node(NUM, 0, nullptr, nullptr);
-
-        case VAR:
-            return create_node(NUM, 1, nullptr, nullptr);
-
-        case OP:
-            switch ((int)root->value)
-            {
-                case ADD:
-                    // d(u + v)/dx = d(u)/dx + d(v)/dx
-                    return new_node(OP, ADD, nullptr,
-                                    diff(root->left),
-                                    diff(root->right));
-
-                case MUL:
-                    // d(u * v)/dx = u * d(v)/dx + v * d(u)/dx
-                    return new_node(OP, ADD, nullptr,
-                                    new_node(OP, MUL, nullptr, CopyTree(root->left), diff(root->right)),
-                                    new_node(OP, MUL, nullptr, diff(root->left), CopyTree(root->right)));
-
-                case DIV:
-                    // d(u / v)/dx = (d(u)/dx * v - u * d(v)/dx) / (v * v)
-                    return new_node(OP, DIV, nullptr,
-                                    new_node(OP, SUB, nullptr,
-                                             new_node(OP, MUL, nullptr, diff(root->left), CopyTree(root->right)),
-                                             new_node(OP, MUL, nullptr, CopyTree(root->left), diff(root->right))),
-                                    new_node(OP, MUL, nullptr, CopyTree(root->right), CopyTree(root->right)));
-
-                case SUB:
-                    // d(u - v)/dx = d(u)/dx - d(v)/dx
-                    return new_node(OP, SUB, nullptr,
-                                    diff(root->left),
-                                    diff(root->right));
-
-                default:
-                    LOG_ERROR("Unknown operator: %d", (int)root->value);
-                    return nullptr;
-            }
-
-        default:
-            LOG_ERROR("Unknown node type: %d", root->type);
-            return nullptr;
-    }
 }

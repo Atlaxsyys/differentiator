@@ -16,7 +16,7 @@ int main(int argc, const char* argv[])
     if (argc != 2) LOG_ERROR("Not enough argc");
     
     FILE* file_read = fopen(argv[1], "r");
-    
+    if (! file_read) LOG_ERROR("failed open file");
 
     char* buffer = create_buffer(file_read);
 
@@ -45,6 +45,7 @@ int main(int argc, const char* argv[])
 
         return 1;
     }
+    
     double result_diff = evaluate(deriv);
     fprintf(stderr, "\nresult_diff = %f\n", result_diff);
 
