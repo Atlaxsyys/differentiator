@@ -20,6 +20,7 @@ static bool is_number(char* token);
 static char* get_token(char* buffer, int* index);
 static void skip_spaces_brakets(char* buffer, int* index);
 static Node_t* new_node(node_type type, double value, Node_t* left, Node_t* right);
+static Node_t* CopyTree(Node_t* root);
 
 Node_t* create_node(node_type type, double value, Node_t* parent)
 {
@@ -122,9 +123,16 @@ Node_t* parse(char* buffer, int* index, Node_t* parent)
     if (is_number(token))
     {
         node = create_node(NUM, atof(token), parent);
-
         free(token);
+        skip_spaces_brakets(buffer, index);
 
+        return node;
+    }
+
+    if (strcmp(token, "x") == 0)
+    {
+        node = create_node(VAR, 0, parent);
+        free(token);
         skip_spaces_brakets(buffer, index);
 
         return node;
@@ -132,15 +140,21 @@ Node_t* parse(char* buffer, int* index, Node_t* parent)
 
     double op_value = 0;
 
-    if      (strcmp(token, "+") == 0) op_value = ADD;
+         if (strcmp(token, "+") == 0) op_value = ADD;
+    else if (strcmp(token, "-") == 0) op_value = SUB;
     else if (strcmp(token, "*") == 0) op_value = MUL;
     else if (strcmp(token, "/") == 0) op_value = DIV;
+    else
+    {
+        LOG_ERROR("Unknown operator: %s", token);
+        free(token);
+        return nullptr;
+    }
 
     node = create_node(OP, op_value, parent);
-
     free(token);
 
-    node->left  = parse(buffer, index, node);
+    node->left = parse(buffer, index, node);
     node->right = parse(buffer, index, node);
 
     return node;
@@ -203,18 +217,30 @@ double evaluate(Node_t* node)
         return node->value;
     }
 
-    double left  = evaluate(node->left);
+    if (node->type == VAR)
+    {
+        return 0;
+    }
+
+    double left = evaluate(node->left);
     double right = evaluate(node->right);
 
-    if(node->type == OP)
+    if (node->type == OP)
     {
         switch ((int)node->value)
         {
             case ADD: return left + right;
+            case SUB: return left - right;
             case MUL: return left * right;
             case DIV: return left / right;
+            default:
+                LOG_ERROR("Unknown operator: %d", (int)node->value);
+                return 0;
         }
     }
+
+    LOG_ERROR("Unknown node type: %d", node->type);
+    return 0;
 }
 
 Tree_errors free_tree(Node_t** node)
@@ -229,13 +255,6 @@ Tree_errors free_tree(Node_t** node)
     *node = nullptr;
 
     return SUCCESS;
-}
-
-Tree_errors copy_tree(Node_t* root)
-{
-    assert(root);
-
-    Node_t*
 }
 
 Tree_errors dump_tree(Node_t* root, FILE* file)
@@ -264,12 +283,14 @@ Tree_errors dump_tree(Node_t* root, FILE* file)
             "    \"%p\" [shape=Mrecord, style=filled, fillcolor=\"#F0C0F0\", label=\"{"
             "data: %s | "
             "current: %p | "
+            "parent: %p | "
             "{ Left: %p | "
             "Right: %p }"
             "}\"];\n",
             root,
             data,
             root,
+            root->parent,
             root->left,
             root->right);
 
@@ -340,4 +361,56 @@ int generate_dot(Node_t* root)
     free(command);
 
     return (file_counter - 1);
+}
+
+Node_t* diff(Node_t* root)
+{
+    assert(root);
+
+    switch (root->type)
+    {
+        case NUM:
+            return create_node(NUM, 0, nullptr);
+
+        case VAR:
+            return create_node(NUM, 1, nullptr);
+
+        case OP:
+            switch ((int)root->value)
+            {
+                case ADD:
+                    // d(u + v)/dx = d(u)/dx + d(v)/dx
+                    return new_node(OP, ADD,
+                                    diff(root->left),
+                                    diff(root->right));
+
+                case MUL:
+                    // d(u * v)/dx = u * d(v)/dx + v * d(u)/dx
+                    return new_node(OP, ADD,
+                                    new_node(OP, MUL, CopyTree(root->left), diff(root->right)),
+                                    new_node(OP, MUL, diff(root->left), CopyTree(root->right)));
+
+                case DIV:
+                    // d(u / v)/dx = (d(u)/dx * v - u * d(v)/dx) / (v * v)
+                    return new_node(OP, DIV,
+                                    new_node(OP, SUB,
+                                             new_node(OP, MUL, diff(root->left), CopyTree(root->right)),
+                                             new_node(OP, MUL, CopyTree(root->left), diff(root->right))),
+                                    new_node(OP, MUL, CopyTree(root->right), CopyTree(root->right)));
+
+                case SUB:
+                    // d(u - v)/dx = d(u)/dx - d(v)/dx
+                    return new_node(OP, SUB,
+                                    diff(root->left),
+                                    diff(root->right));
+
+                default:
+                    LOG_ERROR("Unknown operator: %d", (int)root->value);
+                    return nullptr;
+            }
+
+        default:
+            LOG_ERROR("Unknown node type: %d", root->type);
+            return nullptr;
+    }
 }

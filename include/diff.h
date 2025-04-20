@@ -2,7 +2,8 @@
 
 enum node_type {
     OP  = 1,
-    NUM = 2
+    NUM = 2,
+    VAR = 3
 };
 
 enum operations {

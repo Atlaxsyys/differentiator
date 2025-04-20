@@ -36,3 +36,4 @@ double evaluate(Node_t* node);
 Tree_errors free_tree(Node_t** node);
 Tree_errors dump_tree(Node_t* root, FILE* file);
 int generate_dot(Node_t* root);
+Node_t* diff(Node_t* root);

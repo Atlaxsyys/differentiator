@@ -25,6 +25,11 @@ int main(int argc, const char* argv[])
     int index = 0;
 
     Node_t* root = parse(buffer, &index, nullptr);
+    if(! root)
+    {
+        LOG_ERROR("Failed to parse expression");
+        return 1;
+    }
 
     generate_dot(root);
 
@@ -32,8 +37,22 @@ int main(int argc, const char* argv[])
 
     fprintf(stderr, "result %f", result);
 
+    Node_t* deriv = diff(root);
+    if (!deriv)
+    {
+        LOG_ERROR("Failed to differentiate");
+        free_tree(&root);
+
+        return 1;
+    }
+    double result_diff = evaluate(deriv);
+    fprintf(stderr, "\nresult_diff = %f\n", result_diff);
+
+    generate_dot(deriv);
+
     logger_destructor(get_logger());
 
     free(buffer);
     free_tree(&root);
+    free_tree(&deriv);
 }
