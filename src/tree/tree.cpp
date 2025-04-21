@@ -166,16 +166,26 @@ bool is_number(char* token)
 {
     assert(token);
 
-    bool hasDigit = 0;
+    if (token[0] == '\0') return false;
 
-    for (int i = 0; token[i]; i++)
+    int start = 0;
+    if (token[0] == '-') start = 1;
+
+    bool hasDigit = false;
+    bool hasDot   = false;
+
+    for (int i = start; token[i]; i++)
     {
         if (isdigit(token[i]))
         {
             hasDigit = true;
         }
-
-        else if (token[i] != '.')
+        else if (token[i] == '.')
+        {
+            if (hasDot) return false;
+            hasDot = true;
+        }
+        else
         {
             return false;
         }
