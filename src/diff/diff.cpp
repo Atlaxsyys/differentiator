@@ -45,6 +45,28 @@ Node_t* diff(Node_t* root)
                                     diff(root->left),
                                     diff(root->right));
 
+                case SIN:
+                // d/dx(sin(u)) = cos(u) * du/dx
+                return new_node(OP, MUL, nullptr,
+                                new_node(OP, COS, nullptr, CopyTree(root->left), nullptr),
+                                diff(root->left));
+
+                case COS:
+                    // d/dx(cos(u)) = -sin(u) * du/dx
+                    return new_node(OP, MUL, nullptr,
+                                    new_node(OP, SUB, nullptr,
+                                                create_node(NUM, 0, nullptr, nullptr),
+                                                new_node(OP, SIN, nullptr, CopyTree(root->left), nullptr)),
+                                    diff(root->left));
+
+                case LN:
+                    // d/dx(ln(u)) = (1/u) * du/dx
+                    return new_node(OP, MUL, nullptr,
+                                    new_node(OP, DIV, nullptr,
+                                                create_node(NUM, 1, nullptr, nullptr),
+                                                CopyTree(root->left)),
+                                    diff(root->left));
+
                 default:
                     LOG_ERROR("Unknown operator: %d", (int)root->value);
                     return nullptr;

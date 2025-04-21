@@ -1,3 +1,5 @@
+#include <math.h>
+
 #include "diff_tree.h"
 #include "diff.h"
 #include "logger.h"
@@ -15,7 +17,7 @@ double evaluate(Node_t* node)
     }
 
     double left  = evaluate(node->left);
-    double right = evaluate(node->right);
+    double right = node->right ? evaluate(node->right) : 0;
 
     if (node->type == OP)
     {
@@ -25,6 +27,9 @@ double evaluate(Node_t* node)
             case SUB: return left - right;
             case MUL: return left * right;
             case DIV: return left / right;
+            case SIN: return sin(left);
+            case COS: return cos(left);
+            case  LN: return log(left);
             default:
                 LOG_ERROR("Unknown operator: %d", (int)node->value);
                 return 0;

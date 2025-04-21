@@ -24,13 +24,13 @@ FLAGS = -DEBUG -ggdb3 -std=c++17 -O0 -Wall -Wextra -Weffc++ -Waggressive-loop-op
 CC = g++
 
 INCLUDE = -I$(INCLUDE_DIR)
-CPPSRC = $(SRC_DIR)/diff/diff.cpp \
-         $(SRC_DIR)/diff/main.cpp \
+CPPSRC = $(SRC_DIR)/diff/diff.cpp           \
+         $(SRC_DIR)/diff/main.cpp           \
          $(SRC_DIR)/file_data/file_data.cpp \
-         $(SRC_DIR)/logger/logger.cpp \
-         $(SRC_DIR)/errors/errors.cpp \
-         $(SRC_DIR)/tree/tree.cpp \
-         $(SRC_DIR)/eval/eval.cpp \
+         $(SRC_DIR)/logger/logger.cpp       \
+         $(SRC_DIR)/errors/errors.cpp       \
+         $(SRC_DIR)/tree/tree.cpp           \
+         $(SRC_DIR)/eval/eval.cpp           \
 
 CPPOBJ = $(patsubst %.cpp,$(OBJ_DIR)/%.o,$(notdir $(CPPSRC)))
 

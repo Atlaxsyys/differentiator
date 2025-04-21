@@ -125,7 +125,6 @@ Node_t* parse(char* buffer, int* index, Node_t* parent)
         node = create_node(NUM, atof(token), nullptr, parent);
         free(token);
         skip_spaces_brakets(buffer, index);
-
         return node;
     }
 
@@ -134,29 +133,31 @@ Node_t* parse(char* buffer, int* index, Node_t* parent)
         node = create_node(VAR, 0, token, parent);
         free(token);
         skip_spaces_brakets(buffer, index);
-
         return node;
     }
 
     double op_value = 0;
-
-         if (strcmp(token, "+") == 0) op_value = ADD;
+    bool is_unary = false;
+    if (strcmp(token, "+") == 0) op_value = ADD;
     else if (strcmp(token, "-") == 0) op_value = SUB;
     else if (strcmp(token, "*") == 0) op_value = MUL;
     else if (strcmp(token, "/") == 0) op_value = DIV;
+    else if (strcmp(token, "sin") == 0) { op_value = SIN; is_unary = true; }
+    else if (strcmp(token, "cos") == 0) { op_value = COS; is_unary = true; }
+    else if (strcmp(token, "log") == 0) { op_value = LN;  is_unary = true; }
     else
     {
         LOG_ERROR("Unknown operator: %s", token);
         free(token);
-
         return nullptr;
     }
 
     node = create_node(OP, op_value, nullptr, parent);
     free(token);
 
-    node->left  = parse(buffer, index, node);
-    node->right = parse(buffer, index, node);
+    node->left = parse(buffer, index, node);
+    if (!is_unary)
+        node->right = parse(buffer, index, node);
 
     return node;
 }
@@ -252,6 +253,9 @@ Tree_errors dump_tree(Node_t* root, FILE* file)
             case SUB: strcpy(data, "-");   break;
             case MUL: strcpy(data, "*");   break;
             case DIV: strcpy(data, "/");   break;
+            case SIN: strcpy(data, "sin"); break;
+            case COS: strcpy(data, "cos"); break;
+            case  LN: strcpy(data, "log"); break;
             default:  strcpy(data, "???"); break;
         }
     }

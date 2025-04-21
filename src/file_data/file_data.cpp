@@ -23,12 +23,10 @@ char* create_buffer(FILE* file_read)
     long size_file = size_text_file(file_read);
 
     char* text_buffer = (char*) calloc((size_t) size_file + 1, sizeof(char));
-    if(! text_buffer) {
-        LOG_ERROR("text_buffer = nullptr!"); }
+    if(! text_buffer) LOG_ERROR("text_buffer = nullptr!"); 
 
     size_t number_of_reads = fread(text_buffer, sizeof(char), (size_t) size_file + 1, file_read);
-    if (number_of_reads != (size_t) size_file) {
-        LOG_ERROR("fread error: number_of_reads != size_file"); }
+    if (number_of_reads != (size_t) size_file) LOG_ERROR("fread error: number_of_reads != size_file");
 
     rewind(file_read);
 
@@ -61,8 +59,7 @@ char** create_string_buffer(char* text_buffer, FILE* file_read)
     size_t number_of_lines = n_string(text_buffer, size_file);
 
     char** string_buffer = (char**) calloc(number_of_lines + 1, sizeof(char*));
-    if(! string_buffer) {
-        LOG_ERROR("memore allocation error(string_buffer)"); }
+    if(! string_buffer) LOG_ERROR("memory allocation error(string_buffer)");
 
     int line_number = 1;
     
