@@ -10,15 +10,11 @@
 #include "diff.h"
 #include "errors.h"
 
-#ifdef DEBUG_AKINATOR
-    #define ON_DEBUG(...) __VA_ARGS__
-#else
-    #define ON_DEBUG(...)
-#endif
-
 static bool is_number(char* token);
 static char* get_token(char* buffer, int* index);
-static void skip_spaces_brakets(char* buffer, int* index);
+static void skip_spaces_brackets(char* buffer, int* index);
+
+const int SIZE_TOKEN = 32;
 
 Node_t* create_node(node_type type, double value, char* var_name, Node_t* parent)
 {
@@ -112,7 +108,7 @@ Node_t* parse(char* buffer, int* index, Node_t* parent)
     assert(buffer);
     assert(index);
 
-    skip_spaces_brakets(buffer, index);
+    skip_spaces_brackets(buffer, index);
 
     char* token = get_token(buffer, index);
 
@@ -124,7 +120,8 @@ Node_t* parse(char* buffer, int* index, Node_t* parent)
     {
         node = create_node(NUM, atof(token), nullptr, parent);
         free(token);
-        skip_spaces_brakets(buffer, index);
+        skip_spaces_brackets(buffer, index);
+
         return node;
     }
 
@@ -132,13 +129,15 @@ Node_t* parse(char* buffer, int* index, Node_t* parent)
     {
         node = create_node(VAR, 0, token, parent);
         free(token);
-        skip_spaces_brakets(buffer, index);
+        skip_spaces_brackets(buffer, index);
+
         return node;
     }
 
     double op_value = 0;
     bool is_unary = false;
-    if (strcmp(token, "+") == 0) op_value = ADD;
+
+         if (strcmp(token, "+") == 0) op_value = ADD;
     else if (strcmp(token, "-") == 0) op_value = SUB;
     else if (strcmp(token, "*") == 0) op_value = MUL;
     else if (strcmp(token, "/") == 0) op_value = DIV;
@@ -156,8 +155,7 @@ Node_t* parse(char* buffer, int* index, Node_t* parent)
     free(token);
 
     node->left = parse(buffer, index, node);
-    if (!is_unary)
-        node->right = parse(buffer, index, node);
+    if (!is_unary) node->right = parse(buffer, index, node);
 
     return node;
 }
@@ -199,7 +197,8 @@ char* get_token(char* buffer, int* index)
     assert(buffer);
     assert(index);
 
-    char* token = (char*) calloc(32, sizeof(char));
+    char* token = (char*) calloc(SIZE_TOKEN, sizeof(char));
+    if(! token) { LOG_ERROR("memory allocated error(token)"); return nullptr; }
 
     int i = 0;
     while (!isspace(buffer[*index]) && buffer[*index] != ')' && buffer[*index] != '\0')
@@ -214,7 +213,7 @@ char* get_token(char* buffer, int* index)
     return token;
 }
 
-void skip_spaces_brakets(char* buffer, int* index)
+void skip_spaces_brackets(char* buffer, int* index)
 {
     assert(buffer);
     assert(index);
@@ -276,17 +275,17 @@ Tree_errors dump_tree(Node_t* root, FILE* file)
     }
 
     fprintf(file,
-            "    \"%p\" [shape=Mrecord, style=filled, fillcolor=\"#F0C0F0\", label=\"{"
-            "data: %s | "
-            "current: %p | "
-            "{ Left: %p | "
-            "Right: %p }"
-            "}\"];\n",
-            root,
-            data,
-            root,
-            root->left,
-            root->right);
+        "    \"%p\" [shape=Mrecord, style=filled, fillcolor=\"#F0C0F0\", label=\"{"
+        "data: %s | "
+        "{ current: %p | parent: %p\\l } | "
+        "{ Left: %p | Right: %p }"
+        "}\"];\n",
+        root,
+        data,
+        root,
+        root->parent,
+        root->left,
+        root->right);
 
     if (root->left)
     {
@@ -310,26 +309,22 @@ int generate_dot(Node_t* root)
     static int file_counter = 0;
 
     char* dot_filename = (char*) calloc(SIZE_DOT_FILENAME, sizeof(char));
-    if (! dot_filename) {
-        ERROR_MESSAGE(MEMORY_ALLOC_ERR) }
+    if (! dot_filename) LOG_ERROR("memory allocation error(dot_filename)");
 
     char* png_filename = (char*) calloc(SIZE_PNG_FILENAME, sizeof(char));
-    if(! png_filename) {
-        ERROR_MESSAGE(MEMORY_ALLOC_ERR) }
+    if(! png_filename) LOG_ERROR("memory allocation error(png_filename)");
 
-    char* command      = (char*) calloc(SIZE_COMMAND,      sizeof(char));
-    if(! command) {
-        ERROR_MESSAGE(MEMORY_ALLOC_ERR) }
+    char* command = (char*) calloc(SIZE_COMMAND, sizeof(char));
+    if(! command) LOG_ERROR("memory allocation error(command)"); 
 
     int written_first  = snprintf(dot_filename, SIZE_DOT_FILENAME, "../resources/graph_dump/graph_%d.dot", file_counter);
     int written_second = snprintf(png_filename, SIZE_PNG_FILENAME, "../resources/graph_dump/graph_%d.png", file_counter);
 
-    if (written_first <  0) ERROR_MESSAGE(SNPRINTF_ERR)
-    if (written_second < 0) ERROR_MESSAGE(SNPRINTF_ERR)
+    if (written_first <  0) LOG_ERROR("snprintf error");
+    if (written_second < 0) LOG_ERROR("snprintf error");
 
     FILE* file = fopen(dot_filename, "w");
-    if(! file) {
-        ERROR_MESSAGE(FILE_OPEN_ERR) }
+    if(! file) LOG_ERROR("failed open file");
     
     fprintf(file, "digraph BinaryTree {\n");
     fprintf(file, "    bgcolor=\"#C0C0C0\";\n\n");
@@ -339,12 +334,10 @@ int generate_dot(Node_t* root)
     
     fprintf(file, "}\n");
 
-    if(fclose(file) != 0) {
-        ERROR_MESSAGE(FILE_CLOSE_ERR) }
+    if(fclose(file) != 0) LOG_ERROR("file didn't close");
 
     int written_third = snprintf(command, SIZE_COMMAND, "dot -Tpng %s -o %s", dot_filename, png_filename);
-    if (written_third < 0) {
-        ERROR_MESSAGE(SNPRINTF_ERR) }
+    if (written_third < 0) LOG_ERROR("snprintf error");
 
     system(command);    
 

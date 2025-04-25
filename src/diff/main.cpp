@@ -9,50 +9,60 @@
 
 int main(int argc, const char* argv[])
 {
+    char* buffer = nullptr;
+    Node_t* root = nullptr;
+    Node_t* deriv = nullptr;
+    int index = 0;
+    double result = 0.0;
+    double result_diff = 0.0;
+    FILE* file_read = nullptr;
+
     const char* log_filename = "../resources/logger/logger.log";
+
+    if (argc != 2) { LOG_ERROR("not enough argc"); goto cleanup; }
     
     logger_constructor(log_filename, DEBUG, true);
-
-    if (argc != 2) LOG_ERROR("Not enough argc");
     
-    FILE* file_read = fopen(argv[1], "r");
-    if (! file_read) LOG_ERROR("failed open file");
+    file_read = fopen(argv[1], "r");
+    if (! file_read) { LOG_ERROR("Failed to open file: %s", argv[1]); goto cleanup; }
 
-    char* buffer = create_buffer(file_read);
-
+    buffer = create_buffer(file_read);
     LOG_DEBUG("buffer: %s", buffer);
+    if (! buffer)
+    {
+        fclose(file_read);
+        goto cleanup;
+    }
 
-    int index = 0;
+    if(fclose(file_read) != 0) { LOG_ERROR("Failed to close file: %s", argv[1]); goto cleanup; }
 
-    Node_t* root = parse(buffer, &index, nullptr);
+    root = parse(buffer, &index, nullptr);
     if(! root)
     {
         LOG_ERROR("Failed to parse expression");
-        return 1;
+        goto cleanup;
     }
 
     generate_dot(root);
 
-    double result = evaluate(root);
+    result = evaluate(root);
 
     fprintf(stderr, "result %f", result);
 
-    Node_t* deriv = diff(root);
+    deriv = diff(root);
     if (!deriv)
     {
         LOG_ERROR("Failed to differentiate");
-        free_tree(&root);
-
-        return 1;
+        goto cleanup;
     }
-    
-    double result_diff = evaluate(deriv);
+
+    result_diff = evaluate(deriv);
     fprintf(stderr, "\nresult_diff = %f\n", result_diff);
 
     generate_dot(deriv);
-
+    
+cleanup:
     logger_destructor(get_logger());
-
     free(buffer);
     free_tree(&root);
     free_tree(&deriv);
