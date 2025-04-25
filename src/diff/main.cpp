@@ -6,6 +6,7 @@
 #include "file_data.h"
 #include "colour.h"
 #include "diff_tree.h"
+#include "simplify.h"
 
 int main(int argc, const char* argv[])
 {
@@ -50,11 +51,14 @@ int main(int argc, const char* argv[])
     fprintf(stderr, "result %f", result);
 
     deriv = diff(root);
+    deriv = simplify(deriv);
     if (!deriv)
     {
         LOG_ERROR("Failed to differentiate");
         goto cleanup;
     }
+    
+    generate_dot(root);
 
     result_diff = evaluate(deriv);
     fprintf(stderr, "\nresult_diff = %f\n", result_diff);
