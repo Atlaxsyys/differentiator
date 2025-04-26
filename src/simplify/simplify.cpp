@@ -6,6 +6,9 @@
 #include "diff.h"
 #include "logger.h"
 #include "diff_tree.h"
+#include "simplify.h"
+
+static const double EPSILON = 1e-10;
 
 static Node_t* simplify_node(Node_t* root);
 static Node_t* simplify_number_or_var(Node_t* root);
@@ -16,6 +19,12 @@ static Node_t* simplify_add(Node_t* root);
 static Node_t* simplify_sub(Node_t* root);
 static Node_t* simplify_mul(Node_t* root);
 static Node_t* simplify_div(Node_t* root);
+static bool compare_doubles(double a, double b, double epsilon);
+
+bool compare_doubles(double a, double b, double epsilon)
+{
+    return fabs(a - b) < epsilon;
+}
 
 Node_t* simplify(Node_t* root)
 {
@@ -35,7 +44,7 @@ static Node_t* simplify_node(Node_t* root)
 
     if (root->type == OP)
     {
-        if (root->value == SIN || root->value == COS || root->value == LN) return simplify_unary_operator(root);
+        if ((int) root->value == SIN || (int) root->value == COS || (int) root->value == LN) return simplify_unary_operator(root);
 
         return simplify_binary_operator(root);
     }
@@ -55,16 +64,14 @@ Node_t* simplify_number_or_var(Node_t* root)
 Node_t* simplify_unary_operator(Node_t* root)
 {
     assert(root);
-    assert(root->type == OP);
-    assert(root->value == SIN || root->value == COS || root->value == LN);
 
     if (root->left->type == NUM)
     {
         double value = 0;
 
-             if (root->value == SIN) value = sin(root->left->value);
-        else if (root->value == COS) value = cos(root->left->value);
-        else if (root->value == LN)
+             if ((int) root->value == SIN) value = sin(root->left->value);
+        else if ((int) root->value == COS) value = cos(root->left->value);
+        else if ((int) root->value == LN)
         {
             if (root->left->value <= 0)
             {
@@ -122,12 +129,12 @@ static Node_t* compute_numeric_binary(Node_t* root)
 
     double value = 0;
 
-         if (root->value == ADD) value = root->left->value + root->right->value;
-    else if (root->value == SUB) value = root->left->value - root->right->value;
-    else if (root->value == MUL) value = root->left->value * root->right->value;
-    else if (root->value == DIV)
+         if ((int) root->value == ADD) value = root->left->value + root->right->value;
+    else if ((int) root->value == SUB) value = root->left->value - root->right->value;
+    else if ((int) root->value == MUL) value = root->left->value * root->right->value;
+    else if ((int) root->value == DIV)
     {
-        if (root->right->value == 0)
+        if (compare_doubles(root->right->value, 0.0, EPSILON))
         {
             LOG_ERROR("Division by zero in simplification");
             return root;
@@ -149,11 +156,8 @@ static Node_t* compute_numeric_binary(Node_t* root)
 static Node_t* simplify_add(Node_t* root)
 {
     assert(root);
-    assert(root->type == OP);
-    assert(root->value == ADD);
-    assert(root->left && root->right);
 
-    if (root->left->type == NUM && root->left->value == 0)
+    if (root->left->type == NUM && compare_doubles(root->left->value, 0.0, EPSILON))
     {
         Node_t* right = root->right;
         root->right = nullptr;
@@ -161,24 +165,7 @@ static Node_t* simplify_add(Node_t* root)
 
         return right;
     }
-    if (root->right->type == NUM && root->right->value == 0) {
-        Node_t* left = root->left;
-        root->left = nullptr;
-        free_tree(&root);
-
-        return left;
-    }
-    return root;
-}
-
-static Node_t* simplify_sub(Node_t* root)
-{
-    assert(root);
-    assert(root->type == OP);
-    assert(root->value == SUB);
-    assert(root->left && root->right);
-
-    if (root->right->type == NUM && root->right->value == 0)
+    if (root->right->type == NUM && compare_doubles(root->right->value, 0.0, EPSILON))
     {
         Node_t* left = root->left;
         root->left = nullptr;
@@ -187,7 +174,23 @@ static Node_t* simplify_sub(Node_t* root)
         return left;
     }
 
-    if (root->left->type == NUM && root->left->value == 0)
+    return root;
+}
+
+static Node_t* simplify_sub(Node_t* root)
+{
+    assert(root);
+
+    if (root->right->type == NUM && compare_doubles(root->right->value, 0.0, EPSILON))
+    {
+        Node_t* left = root->left;
+        root->left = nullptr;
+        free_tree(&root);
+
+        return left;
+    }
+
+    if (root->left->type == NUM && compare_doubles(root->left->value, 0.0, EPSILON))
     {
         Node_t* right = root->right;
         root->right = nullptr;
@@ -202,21 +205,18 @@ static Node_t* simplify_sub(Node_t* root)
 static Node_t* simplify_mul(Node_t* root)
 {
     assert(root);
-    assert(root->type == OP);
-    assert(root->value == MUL);
-    assert(root->left && root->right);
 
-    if (root->left->type == NUM && root->left->value == 0)
+    if (root->left->type == NUM && compare_doubles(root->left->value, 0.0, EPSILON))
     {
         free_tree(&root);
         return create_node(NUM, 0, nullptr, nullptr);
     }
-    if (root->right->type == NUM && root->right->value == 0)
+    if (root->right->type == NUM && compare_doubles(root->right->value, 0.0, EPSILON))
     {
         free_tree(&root);
         return create_node(NUM, 0, nullptr, nullptr);
     }
-    if (root->left->type == NUM && root->left->value == 1)
+    if (root->left->type == NUM && compare_doubles(root->left->value, 1.0, EPSILON))
     {
         Node_t* right = root->right;
         root->right = nullptr;
@@ -224,7 +224,7 @@ static Node_t* simplify_mul(Node_t* root)
         
         return right;
     }
-    if (root->right->type == NUM && root->right->value == 1)
+    if (root->right->type == NUM && compare_doubles(root->right->value, 1.0, EPSILON))
     {
         Node_t* left = root->left;
         root->left = nullptr;
@@ -238,11 +238,8 @@ static Node_t* simplify_mul(Node_t* root)
 static Node_t* simplify_div(Node_t* root)
 {
     assert(root);
-    assert(root->type == OP);
-    assert(root->value == DIV);
-    assert(root->left && root->right);
 
-    if (root->right->type == NUM && root->right->value == 1)
+    if (root->right->type == NUM && compare_doubles(root->right->value, 1.0, EPSILON))
     {
         Node_t* left = root->left;
         root->left = nullptr;
